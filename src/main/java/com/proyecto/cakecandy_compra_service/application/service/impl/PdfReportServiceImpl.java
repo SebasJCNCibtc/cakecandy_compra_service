@@ -8,10 +8,13 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState;
 import org.springframework.stereotype.Service;
 
+import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -24,55 +27,20 @@ public class PdfReportServiceImpl {
             document.addPage(page);
 
             try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
-                contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 16);
-                contentStream.beginText();
-                contentStream.newLineAtOffset(50, 750);
-                contentStream.showText("Reporte de Historial de Compras");
-                contentStream.endText();
+                addWatermark(contentStream, page);
+                addHeader(contentStream, page);
 
-                drawTable(contentStream, compras);
+                // Ajustar posición del título principal hacia abajo
+                writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 16, 50, 650, "Reporte de Historial de Compras");
+                // Ajustar posición de la tabla hacia abajo
+                drawTable(contentStream, compras, 630);
+                addFooter(contentStream, 1);
             }
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             document.save(outputStream);
             return outputStream.toByteArray();
         }
-    }
-
-    private void drawTable(PDPageContentStream contentStream, List<CompraResponseDto> compras) throws IOException {
-        float margin = 50;
-        float y = 700;
-        float rowHeight = 20.0f;
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-        // Cabeceras
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 10);
-        writeText(contentStream, margin + 5, y - 15, "ID");
-        writeText(contentStream, margin + 40, y - 15, "ID Prov.");
-        writeText(contentStream, margin + 100, y - 15, "Fecha Compra");
-        writeText(contentStream, margin + 200, y - 15, "Fecha Venc.");
-        writeText(contentStream, margin + 300, y - 15, "Estado");
-        writeText(contentStream, margin + 380, y - 15, "Total");
-        y -= rowHeight;
-
-        // Filas
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9);
-        for (CompraResponseDto compra : compras) {
-            writeText(contentStream, margin + 5, y - 15, String.valueOf(compra.getIdCompra()));
-            writeText(contentStream, margin + 40, y - 15, String.valueOf(compra.getIdProveedor()));
-            writeText(contentStream, margin + 100, y - 15, compra.getFechaCompra().format(formatter));
-            writeText(contentStream, margin + 200, y - 15, compra.getFechaVencimiento() != null ? compra.getFechaVencimiento().format(formatter) : "N/A");
-            writeText(contentStream, margin + 300, y - 15, compra.getEstadoPago());
-            writeText(contentStream, margin + 380, y - 15, "S/ " + compra.getTotal().toString());
-            y -= rowHeight;
-        }
-    }
-
-    private void writeText(PDPageContentStream stream, float x, float y, String text) throws IOException {
-        stream.beginText();
-        stream.newLineAtOffset(x, y);
-        stream.showText(text);
-        stream.endText();
     }
 
     public byte[] generateCompraDetailReport(CompraDetalleDto compra) throws IOException {
@@ -81,23 +49,13 @@ public class PdfReportServiceImpl {
             document.addPage(page);
 
             try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                addWatermark(contentStream, page);
+                addHeader(contentStream, page);
 
-                contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 16);
-                contentStream.beginText();
-                contentStream.newLineAtOffset(50, 750);
-                contentStream.showText("Detalle de Compra #" + compra.getIdCompra());
-                contentStream.endText();
-
-                // Información del proveedor y la compra
-                contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
-                writeText(contentStream, 50, 720, "Proveedor: " + compra.getNombreProveedor());
-                writeText(contentStream, 50, 700, "Fecha: " + compra.getFechaCompra().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
-                writeText(contentStream, 50, 680, "Vencimiento: " + compra.getFechaVencimiento().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
-                writeText(contentStream, 50, 660, "Estado: " + compra.getEstadoPago());
-                writeText(contentStream, 50, 640, "Total: S/ " + compra.getTotal().toString());
-
-                // Tabla de productos
+                // Ajustar posiciones para el detalle de compra
+                drawInfoCard(contentStream, compra);
                 drawDetailTable(contentStream, compra.getDetalles());
+                addFooter(contentStream, 1);
             }
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -106,27 +64,176 @@ public class PdfReportServiceImpl {
         }
     }
 
-    private void drawDetailTable(PDPageContentStream contentStream, List<DetalleCompraConProductoDto> detalles) throws IOException {
+    private void drawTable(PDPageContentStream contentStream, List<CompraResponseDto> compras, float y) throws IOException {
         float margin = 50;
-        float y = 600;
         float rowHeight = 20.0f;
+        float tableWidth = 500f;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        float[] colWidths = {30, 50, 90, 90, 70, 70}; // Anchos de columna
+
+        // Dibuja el fondo de la cabecera
+        contentStream.setNonStrokingColor(Color.DARK_GRAY);
+        contentStream.addRect(margin, y - rowHeight, tableWidth, rowHeight);
+        contentStream.fill();
+        contentStream.setNonStrokingColor(Color.WHITE);
 
         // Cabeceras
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 10);
-        writeText(contentStream, margin + 5, y - 15, "Producto");
-        writeText(contentStream, margin + 250, y - 15, "Cantidad");
-        writeText(contentStream, margin + 350, y - 15, "Costo Unit.");
-        writeText(contentStream, margin + 450, y - 15, "Subtotal");
+        String[] headers = {"ID", "ID Prov.", "Fecha Compra", "Fecha Venc.", "Estado", "Total"};
+        float textX = margin + 5;
+        float textY = y - 15;
+        for(int i = 0; i < headers.length; i++) {
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 10, textX, textY, headers[i]);
+            textX += colWidths[i];
+        }
+
+        // Filas
+        contentStream.setNonStrokingColor(Color.BLACK);
+        textY -= rowHeight;
+        for (CompraResponseDto compra : compras) {
+            textX = margin + 5;
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9, textX, textY, String.valueOf(compra.getIdCompra()));
+            textX += colWidths[0];
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9, textX, textY, String.valueOf(compra.getIdProveedor()));
+            textX += colWidths[1];
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9, textX, textY, compra.getFechaCompra().format(formatter));
+            textX += colWidths[2];
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9, textX, textY, compra.getFechaVencimiento() != null ? compra.getFechaVencimiento().format(formatter) : "N/A");
+            textX += colWidths[3];
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9, textX, textY, compra.getEstadoPago());
+            textX += colWidths[4];
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 9, textX, textY, "S/ " + compra.getTotal().toString());
+            textY -= rowHeight;
+        }
+    }
+
+    private void drawInfoCard(PDPageContentStream contentStream, CompraDetalleDto compra) throws IOException {
+        float margin = 50;
+        float cardWidth = 500;
+        // Ajustar posición de la tarjeta de información hacia abajo
+        float yStart = 650;
+
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 18, margin, yStart, "Detalle de Compra #" + compra.getIdCompra());
+
+        // Información de la compra
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12, margin, yStart - 30, "Proveedor:");
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12, margin + 80, yStart - 30, compra.getNombreProveedor());
+
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12, margin, yStart - 50, "Fecha Compra:");
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12, margin + 100, yStart - 50, compra.getFechaCompra().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12, margin, yStart - 70, "Fecha Vencimiento:");
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12, margin + 130, yStart - 70, compra.getFechaVencimiento().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12, margin, yStart - 90, "Estado:");
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12, margin + 60, yStart - 90, compra.getEstadoPago());
+
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12, margin + 350, yStart - 90, "TOTAL:");
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 20, margin + 350, yStart - 115, "S/ " + compra.getTotal().toString());
+
+        // Línea separadora
+        contentStream.setStrokingColor(Color.LIGHT_GRAY);
+        contentStream.moveTo(margin, yStart - 125);
+        contentStream.lineTo(margin + cardWidth, yStart - 125);
+        contentStream.stroke();
+    }
+
+    private void drawDetailTable(PDPageContentStream contentStream, List<DetalleCompraConProductoDto> detalles) throws IOException {
+        float margin = 50;
+        // Ajustar posición de la tabla de detalles hacia abajo
+        float y = 480;
+        float rowHeight = 20.0f;
+        float tableWidth = 500f;
+        float[] colWidths = {250, 80, 80, 90};
+
+        // Dibuja el fondo de la cabecera
+        contentStream.setNonStrokingColor(Color.decode("#F3F4F6"));
+        contentStream.addRect(margin, y, tableWidth, rowHeight);
+        contentStream.fill();
+        contentStream.setNonStrokingColor(Color.BLACK);
+
+        // Cabeceras
+        String[] headers = {"Producto", "Cantidad", "Costo Unit.", "Subtotal"};
+        float textX = margin + 5;
+        float textY = y + 5;
+        for (int i = 0; i < headers.length; i++) {
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 10, textX, textY, headers[i]);
+            textX += colWidths[i];
+        }
+
         y -= rowHeight;
 
         // Filas
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10);
         for (DetalleCompraConProductoDto detalle : detalles) {
-            writeText(contentStream, margin + 5, y - 15, detalle.getNombreProducto());
-            writeText(contentStream, margin + 250, y - 15, String.valueOf(detalle.getCantidad()));
-            writeText(contentStream, margin + 350, y - 15, "S/ " + detalle.getPrecioCosto().toString());
-            writeText(contentStream, margin + 450, y - 15, "S/ " + detalle.getSubtotal().toString());
+            contentStream.setStrokingColor(Color.LIGHT_GRAY);
+            contentStream.moveTo(margin, y);
+            contentStream.lineTo(margin + tableWidth, y);
+            contentStream.stroke();
+
+            textX = margin + 5;
+            textY = y + 5;
+
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10, textX, textY, detalle.getNombreProducto());
+            textX += colWidths[0];
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10, textX, textY, String.valueOf(detalle.getCantidad()));
+            textX += colWidths[1];
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10, textX, textY, "S/ " + detalle.getPrecioCosto().toString());
+            textX += colWidths[2];
+            writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 10, textX, textY, "S/ " + detalle.getSubtotal().toString());
+
             y -= rowHeight;
         }
+    }
+
+    private void addHeader(PDPageContentStream contentStream, PDPage page) throws IOException {
+        String fecha = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
+        // Ajustar posición del header hacia abajo
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 18, 50, 750, "Cake Candy");
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10, 450, 750, "Fecha: " + fecha);
+        contentStream.setStrokingColor(Color.DARK_GRAY);
+        contentStream.setLineWidth(1.5f);
+        contentStream.moveTo(50, 740);
+        contentStream.lineTo(page.getMediaBox().getWidth() - 50, 740);
+        contentStream.stroke();
+    }
+
+    private void addWatermark(PDPageContentStream contentStream, PDPage page) throws IOException {
+        PDExtendedGraphicsState gs = new PDExtendedGraphicsState();
+        gs.setNonStrokingAlphaConstant(0.08f);
+        contentStream.setGraphicsStateParameters(gs);
+
+        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 100);
+        contentStream.setNonStrokingColor(Color.GRAY);
+
+        contentStream.saveGraphicsState();
+        // Ajustar posición del watermark para mejor centrado
+        contentStream.transform(new org.apache.pdfbox.util.Matrix(
+                (float) Math.cos(Math.toRadians(45)), (float) Math.sin(Math.toRadians(45)),
+                -(float) Math.sin(Math.toRadians(45)), (float) Math.cos(Math.toRadians(45)),
+                page.getMediaBox().getWidth() / 3, page.getMediaBox().getHeight() / 3));
+
+        contentStream.beginText();
+        contentStream.showText("Cake Candy");
+        contentStream.endText();
+
+        contentStream.restoreGraphicsState();
+
+        // Restaurar estado gráfico
+        gs.setNonStrokingAlphaConstant(1.0f);
+        contentStream.setGraphicsStateParameters(gs);
+        contentStream.setNonStrokingColor(Color.BLACK);
+    }
+
+    private void addFooter(PDPageContentStream contentStream, int pageNum) throws IOException {
+        // Ajustar posición del footer
+        writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10, 270, 50, "Página " + pageNum);
+    }
+
+    private void writeText(PDPageContentStream stream, PDType1Font font, int fontSize, float x, float y, String text) throws IOException {
+        stream.setFont(font, fontSize);
+        stream.beginText();
+        stream.newLineAtOffset(x, y);
+        stream.showText(text != null ? text : "");
+        stream.endText();
     }
 }
