@@ -26,7 +26,7 @@ public class DetalleCompra {
     @Column(nullable = false)
     private BigDecimal subtotal;
 
-    @JsonIgnore // Evita bucles infinitos al serializar a JSON
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_compra", nullable = false)
     private Compra compra;

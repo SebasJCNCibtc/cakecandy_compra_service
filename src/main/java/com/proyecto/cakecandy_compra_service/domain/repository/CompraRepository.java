@@ -10,7 +10,6 @@ import java.util.List;
 
 @Repository
 public interface CompraRepository extends JpaRepository<Compra, Integer> {
-    // --- NUEVOS MÉTODOS DE BÚSQUEDA ---
     List<Compra> findByEstadoPago(EstadoPago estado);
 
     List<Compra> findByEstadoPagoAndFechaVencimientoBefore(EstadoPago estado, LocalDate fecha);

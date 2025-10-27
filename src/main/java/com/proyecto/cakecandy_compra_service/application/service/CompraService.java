@@ -9,15 +9,9 @@ import java.io.IOException;
 import java.util.List;
 
 public interface CompraService {
-    /**
-     * Registra una nueva compra, guarda los detalles y actualiza
-     * el stock de los productos correspondientes.
-     *
-     * @param requestDto DTO con los detalles de la compra.
-     * @return DTO con la información de la compra creada.
-     */
+
     CompraResponseDto createCompra(CompraRequestDto requestDto);
-    // --- NUEVOS MÉTODOS ---
+
     CompraResponseDto marcarComoPagada(Integer idCompra, String metodoPago);
 
     List<CompraResponseDto> findByEstadoPago(EstadoPago estado);

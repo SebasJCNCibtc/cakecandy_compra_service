@@ -7,6 +7,6 @@ import java.util.List;
 @Data
 public class CompraRequestDto {
     private Integer idProveedor;
-    private LocalDate fechaVencimiento; // <-- AÑADIR ESTE CAMPO
+    private LocalDate fechaVencimiento;
     private List<ItemCompraDto> items;
 }

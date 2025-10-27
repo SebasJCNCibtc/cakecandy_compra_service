@@ -31,7 +31,6 @@ public class CompraServiceImpl implements CompraService {
     @Override
     @Transactional
     public CompraResponseDto createCompra(CompraRequestDto requestDto) {
-        // 1. Preparamos los datos de la compra
         BigDecimal totalCompra = BigDecimal.ZERO;
         List<DetalleCompra> detallesParaGuardar = new ArrayList<>();
 
@@ -47,13 +46,11 @@ public class CompraServiceImpl implements CompraService {
             detallesParaGuardar.add(detalle);
         }
 
-        // 2. Creamos y guardamos la entidad Compra principal
         Compra nuevaCompra = new Compra();
         nuevaCompra.setIdProveedor(requestDto.getIdProveedor());
         nuevaCompra.setTotal(totalCompra);
-        nuevaCompra.setFechaVencimiento(requestDto.getFechaVencimiento()); // <-- AÑADIMOS LA ASIGNACIÓN
+        nuevaCompra.setFechaVencimiento(requestDto.getFechaVencimiento());
 
-        // 3. Vinculamos los detalles con la compra principal
         for (DetalleCompra detalle : detallesParaGuardar) {
             detalle.setCompra(nuevaCompra);
         }
@@ -61,8 +58,6 @@ public class CompraServiceImpl implements CompraService {
 
         Compra compraGuardada = compraRepository.save(nuevaCompra);
 
-        // 4. Actualizamos el stock en producto-service (orquestación)
-        // Esto se hace después de guardar, para asegurar que la compra se registró primero.
         for (ItemCompraDto item : requestDto.getItems()) {
             productoFeignClient.addStock(item.getIdProducto(), item.getCantidad());
         }
@@ -70,7 +65,6 @@ public class CompraServiceImpl implements CompraService {
         return buildResponseDto(compraGuardada);
     }
 
-    // Método de ayuda para construir la respuesta a partir de la entidad
     private CompraResponseDto buildResponseDto(Compra compra) {
         List<DetalleCompraResponseDto> detallesDto = compra.getDetalles().stream().map(detalle -> {
             DetalleCompraResponseDto dto = new DetalleCompraResponseDto();
@@ -87,13 +81,13 @@ public class CompraServiceImpl implements CompraService {
         response.setFechaCompra(compra.getFechaCompra());
         response.setTotal(compra.getTotal());
         response.setDetalles(detallesDto);
-        // --- AÑADIR ESTOS CAMPOS ---
+
         response.setEstadoPago(compra.getEstadoPago().name());
         response.setFechaVencimiento(compra.getFechaVencimiento());
         response.setMetodoPago(compra.getMetodoPago());
         return response;
     }
-    // --- NUEVOS MÉTODOS ---
+
     @Override
     @Transactional
     public CompraResponseDto marcarComoPagada(Integer idCompra, String metodoPago) {
@@ -135,16 +129,16 @@ public class CompraServiceImpl implements CompraService {
     @Override
     @Transactional(readOnly = true)
     public CompraDetalleDto findCompraConDetalles(Integer idCompra) {
-        // 1. Busca la compra principal en la base de datos de este servicio
+
         Compra compra = compraRepository.findById(idCompra)
                 .orElseThrow(() -> new RuntimeException("Compra no encontrada con ID: " + idCompra));
 
-        // 2. Orquestación: Llama al producto-service para obtener el nombre del proveedor
+
         ProveedorDto proveedor = productoFeignClient.findProveedorById(compra.getIdProveedor());
 
-        // 3. Orquestación: Llama al producto-service por cada item para obtener su nombre
+
         List<DetalleCompraConProductoDto> detallesEnriquecidos = compra.getDetalles().stream().map(detalle -> {
-            // Llama al endpoint GET /api/productos/{id}
+
             ProductoDto producto = productoFeignClient.findProductoById(detalle.getIdProducto());
 
             DetalleCompraConProductoDto detalleDto = new DetalleCompraConProductoDto();
@@ -155,7 +149,6 @@ public class CompraServiceImpl implements CompraService {
             return detalleDto;
         }).collect(Collectors.toList());
 
-        // 4. Construye el objeto de respuesta final con toda la información recolectada
         CompraDetalleDto dtoFinal = new CompraDetalleDto();
         dtoFinal.setIdCompra(compra.getIdCompra());
         dtoFinal.setNombreProveedor(proveedor.getNombreProveedor());
@@ -175,7 +168,6 @@ public class CompraServiceImpl implements CompraService {
     }
     @Override
     public byte[] exportCompraDetailToPdf(Integer idCompra) throws IOException {
-        // Reutilizamos el método de orquestación que ya creamos
         CompraDetalleDto compraDetalle = this.findCompraConDetalles(idCompra);
         return pdfReportService.generateCompraDetailReport(compraDetalle);
     }

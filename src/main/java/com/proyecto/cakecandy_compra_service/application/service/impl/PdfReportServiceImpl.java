@@ -30,9 +30,7 @@ public class PdfReportServiceImpl {
                 addWatermark(contentStream, page);
                 addHeader(contentStream, page);
 
-                // Ajustar posición del título principal hacia abajo
                 writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 16, 50, 650, "Reporte de Historial de Compras");
-                // Ajustar posición de la tabla hacia abajo
                 drawTable(contentStream, compras, 630);
                 addFooter(contentStream, 1);
             }
@@ -52,7 +50,6 @@ public class PdfReportServiceImpl {
                 addWatermark(contentStream, page);
                 addHeader(contentStream, page);
 
-                // Ajustar posiciones para el detalle de compra
                 drawInfoCard(contentStream, compra);
                 drawDetailTable(contentStream, compra.getDetalles());
                 addFooter(contentStream, 1);
@@ -70,15 +67,13 @@ public class PdfReportServiceImpl {
         float tableWidth = 500f;
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        float[] colWidths = {30, 50, 90, 90, 70, 70}; // Anchos de columna
+        float[] colWidths = {30, 50, 90, 90, 70, 70};
 
-        // Dibuja el fondo de la cabecera
         contentStream.setNonStrokingColor(Color.DARK_GRAY);
         contentStream.addRect(margin, y - rowHeight, tableWidth, rowHeight);
         contentStream.fill();
         contentStream.setNonStrokingColor(Color.WHITE);
 
-        // Cabeceras
         String[] headers = {"ID", "ID Prov.", "Fecha Compra", "Fecha Venc.", "Estado", "Total"};
         float textX = margin + 5;
         float textY = y - 15;
@@ -87,7 +82,6 @@ public class PdfReportServiceImpl {
             textX += colWidths[i];
         }
 
-        // Filas
         contentStream.setNonStrokingColor(Color.BLACK);
         textY -= rowHeight;
         for (CompraResponseDto compra : compras) {
@@ -110,12 +104,10 @@ public class PdfReportServiceImpl {
     private void drawInfoCard(PDPageContentStream contentStream, CompraDetalleDto compra) throws IOException {
         float margin = 50;
         float cardWidth = 500;
-        // Ajustar posición de la tarjeta de información hacia abajo
         float yStart = 650;
 
         writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 18, margin, yStart, "Detalle de Compra #" + compra.getIdCompra());
 
-        // Información de la compra
         writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12, margin, yStart - 30, "Proveedor:");
         writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12, margin + 80, yStart - 30, compra.getNombreProveedor());
 
@@ -131,7 +123,6 @@ public class PdfReportServiceImpl {
         writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12, margin + 350, yStart - 90, "TOTAL:");
         writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 20, margin + 350, yStart - 115, "S/ " + compra.getTotal().toString());
 
-        // Línea separadora
         contentStream.setStrokingColor(Color.LIGHT_GRAY);
         contentStream.moveTo(margin, yStart - 125);
         contentStream.lineTo(margin + cardWidth, yStart - 125);
@@ -140,19 +131,16 @@ public class PdfReportServiceImpl {
 
     private void drawDetailTable(PDPageContentStream contentStream, List<DetalleCompraConProductoDto> detalles) throws IOException {
         float margin = 50;
-        // Ajustar posición de la tabla de detalles hacia abajo
         float y = 480;
         float rowHeight = 20.0f;
         float tableWidth = 500f;
         float[] colWidths = {250, 80, 80, 90};
 
-        // Dibuja el fondo de la cabecera
         contentStream.setNonStrokingColor(Color.decode("#F3F4F6"));
         contentStream.addRect(margin, y, tableWidth, rowHeight);
         contentStream.fill();
         contentStream.setNonStrokingColor(Color.BLACK);
 
-        // Cabeceras
         String[] headers = {"Producto", "Cantidad", "Costo Unit.", "Subtotal"};
         float textX = margin + 5;
         float textY = y + 5;
@@ -163,7 +151,6 @@ public class PdfReportServiceImpl {
 
         y -= rowHeight;
 
-        // Filas
         for (DetalleCompraConProductoDto detalle : detalles) {
             contentStream.setStrokingColor(Color.LIGHT_GRAY);
             contentStream.moveTo(margin, y);
@@ -187,7 +174,6 @@ public class PdfReportServiceImpl {
 
     private void addHeader(PDPageContentStream contentStream, PDPage page) throws IOException {
         String fecha = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
-        // Ajustar posición del header hacia abajo
         writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 18, 50, 750, "Cake Candy");
         writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10, 450, 750, "Fecha: " + fecha);
         contentStream.setStrokingColor(Color.DARK_GRAY);
@@ -206,7 +192,6 @@ public class PdfReportServiceImpl {
         contentStream.setNonStrokingColor(Color.GRAY);
 
         contentStream.saveGraphicsState();
-        // Ajustar posición del watermark para mejor centrado
         contentStream.transform(new org.apache.pdfbox.util.Matrix(
                 (float) Math.cos(Math.toRadians(45)), (float) Math.sin(Math.toRadians(45)),
                 -(float) Math.sin(Math.toRadians(45)), (float) Math.cos(Math.toRadians(45)),
@@ -218,14 +203,12 @@ public class PdfReportServiceImpl {
 
         contentStream.restoreGraphicsState();
 
-        // Restaurar estado gráfico
         gs.setNonStrokingAlphaConstant(1.0f);
         contentStream.setGraphicsStateParameters(gs);
         contentStream.setNonStrokingColor(Color.BLACK);
     }
 
     private void addFooter(PDPageContentStream contentStream, int pageNum) throws IOException {
-        // Ajustar posición del footer
         writeText(contentStream, new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10, 270, 50, "Página " + pageNum);
     }
 
